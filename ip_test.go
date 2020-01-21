@@ -2,7 +2,7 @@ package ip
 
 import (
 	"encoding/binary"
-	"math"
+	"math/big"
 	"net"
 	"testing"
 
@@ -13,6 +13,10 @@ var (
 	zoneUS4 *Zone
 	zoneCA4 *Zone
 	zoneAU4 *Zone
+
+	zoneUS16 *Zone
+	zoneCA16 *Zone
+	zoneAU16 *Zone
 )
 
 func Test_Init(t *testing.T) {
@@ -25,7 +29,16 @@ func Test_Init(t *testing.T) {
 	zoneCA4, err = MkZone("ca", "http://ipverse.net/ipblocks/data/countries/ca.zone")
 	assert.Nil(err)
 
-	zoneAU4, err = MkZone("ca", "http://ipverse.net/ipblocks/data/countries/au.zone")
+	zoneAU4, err = MkZone("au", "http://ipverse.net/ipblocks/data/countries/au.zone")
+	assert.Nil(err)
+
+	zoneUS16, err = MkZone("us", "http://ipverse.net/ipblocks/data/countries/us-ipv6.zone")
+	assert.Nil(err)
+
+	zoneCA16, err = MkZone("ca", "http://ipverse.net/ipblocks/data/countries/ca-ipv6.zone")
+	assert.Nil(err)
+
+	zoneAU16, err = MkZone("au", "http://ipverse.net/ipblocks/data/countries/au-ipv6.zone")
 	assert.Nil(err)
 }
 
@@ -35,9 +48,9 @@ func Test_IP4(t *testing.T) {
 	assert.Nil(err)
 
 	// us bingo
-	// us: 6.0.0.0/7  6.0.0.0 - 7.255.255.255
-	first := binary.BigEndian.Uint32([]byte{6, 0, 0, 0})
-	last := binary.BigEndian.Uint32([]byte{7, 255, 255, 255})
+	// us: 23.19.0.0/19  23.19.0.0 - 23.19.31.255
+	first := binary.BigEndian.Uint32([]byte{23, 19, 0, 0})
+	last := binary.BigEndian.Uint32([]byte{23, 19, 31, 255})
 	for k := first; k <= last; k++ {
 		ip := make([]byte, 4)
 		binary.BigEndian.PutUint32(ip, k)
@@ -47,51 +60,65 @@ func Test_IP4(t *testing.T) {
 		assert.Equal(name, "us")
 	}
 
-	maxLoop := 100
-
 	// ca bingo
-	for index, cidr := range zoneCA4.CIDR {
-		if index == maxLoop {
-			return
-		}
-
-		_, ipnet, _ := net.ParseCIDR(cidr)
-		ones, _ := ipnet.Mask.Size()
-
-		raw := binary.BigEndian.Uint32(ipnet.IP)
-		first := raw >> (32 - ones) << (32 - ones)
-		last := first | math.MaxUint32>>ones
-
-		for k := first; k <= last; k++ {
-			ip := make([]byte, 4)
-			binary.BigEndian.PutUint32(ip, k)
-			ok, name, err := filter.Bingo(net.IP(ip).String())
-			assert.Nil(err)
-			assert.True(ok)
-			assert.Equal(name, "ca")
-		}
+	// ca: 23.254.0.0/17  23.254.0.0 - 23.254.127.255
+	first = binary.BigEndian.Uint32([]byte{23, 254, 0, 0})
+	last = binary.BigEndian.Uint32([]byte{23, 254, 127, 255})
+	for k := first; k <= last; k++ {
+		ip := make([]byte, 4)
+		binary.BigEndian.PutUint32(ip, k)
+		ok, name, err := filter.Bingo(net.IP(ip).String())
+		assert.Nil(err)
+		assert.True(ok)
+		assert.Equal(name, "ca")
 	}
 
-	// out
-	for index, cidr := range zoneAU4.CIDR {
-		if index == maxLoop {
-			return
-		}
+	// au not bingo
+	// au: 1.178.0.0/16  1.178.0.0 - 1.178.255.255
+	first = binary.BigEndian.Uint32([]byte{1, 178, 0, 0})
+	last = binary.BigEndian.Uint32([]byte{1, 178, 255, 255})
+	for k := first; k <= last; k++ {
+		ip := make([]byte, 4)
+		binary.BigEndian.PutUint32(ip, k)
+		ok, name, err := filter.Bingo(net.IP(ip).String())
+		assert.Nil(err)
+		assert.False(ok)
+		assert.Empty(name)
+	}
+}
 
-		_, ipnet, _ := net.ParseCIDR(cidr)
-		ones, _ := ipnet.Mask.Size()
+func Test_IP16(t *testing.T) {
+	assert := assert.New(t)
+	filter, err := NewFilter(zoneUS16, zoneCA16)
+	assert.Nil(err)
 
-		raw := binary.BigEndian.Uint32(ipnet.IP)
-		first := raw >> (32 - ones) << (32 - ones)
-		last := first | math.MaxUint32>>ones
+	// us bingo
+	// us: 2600:800::/27
+	raw := big.NewInt(0).SetBytes(net.ParseIP("2600:800::"))
+	for k := 1; k <= 10000; k++ {
+		ok, name, err := filter.Bingo(net.IP(raw.Add(raw, big.NewInt(1)).Bytes()).String())
+		assert.Nil(err)
+		assert.True(ok)
+		assert.Equal(name, "us")
+	}
 
-		for k := first; k <= last; k++ {
-			ip := make([]byte, 4)
-			binary.BigEndian.PutUint32(ip, k)
-			ok, name, err := filter.Bingo(net.IP(ip).String())
-			assert.Nil(err)
-			assert.False(ok)
-			assert.Empty(name)
-		}
+	// ca bingo
+	// ca: 2001:568::/29
+	raw = big.NewInt(0).SetBytes(net.ParseIP("2001:568::"))
+	for k := 1; k <= 10000; k++ {
+		ok, name, err := filter.Bingo(net.IP(raw.Add(raw, big.NewInt(1)).Bytes()).String())
+		assert.Nil(err)
+		assert.True(ok)
+		assert.Equal(name, "ca")
+	}
+
+	// au not bingo
+	// au: 2001:df0:2aa::/48
+	raw = big.NewInt(0).SetBytes(net.ParseIP("2001:df0:2aa::"))
+	for k := 1; k <= 10000; k++ {
+		ok, name, err := filter.Bingo(net.IP(raw.Add(raw, big.NewInt(1)).Bytes()).String())
+		assert.Nil(err)
+		assert.False(ok)
+		assert.Empty(name)
 	}
 }
