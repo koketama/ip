@@ -9,11 +9,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-const interval_size = 1024
+const intervalSize = 1024
 
 var _ Filter = (*filter)(nil)
 
+// Filter support operations of ip4/ip16 filter
 type Filter interface {
+	// Bingo check ip likes 23.19.0.1 or 2600:800:: wheter in filter
 	Bingo(ip string) (ok bool, name string, err error)
 }
 
@@ -46,6 +48,7 @@ type filter struct {
 	ip16 []*block16
 }
 
+// Zone define cidr(s)
 type Zone struct {
 	Name string
 	CIDR []string
@@ -159,23 +162,23 @@ func (f *filter) initIP4(intervals []*interval4) {
 		return intervals[i].max < intervals[j].max
 	})
 
-	blockSize := len(intervals) / interval_size
-	if len(intervals)%interval_size != 0 {
+	blockSize := len(intervals) / intervalSize
+	if len(intervals)%intervalSize != 0 {
 		blockSize++
 	}
 	f.ip4 = make([]*block4, blockSize)
 
 	for k := 0; k < blockSize-1; k++ {
 		f.ip4[k] = &block4{
-			min:       intervals[k*interval_size].min,
-			max:       intervals[(k+1)*interval_size-1].max,
-			intervals: intervals[k*interval_size : (k+1)*interval_size],
+			min:       intervals[k*intervalSize].min,
+			max:       intervals[(k+1)*intervalSize-1].max,
+			intervals: intervals[k*intervalSize : (k+1)*intervalSize],
 		}
 	}
 	f.ip4[blockSize-1] = &block4{
-		min:       intervals[(blockSize-1)*interval_size].min,
+		min:       intervals[(blockSize-1)*intervalSize].min,
 		max:       intervals[len(intervals)-1].max,
-		intervals: intervals[(blockSize-1)*interval_size:],
+		intervals: intervals[(blockSize-1)*intervalSize:],
 	}
 }
 
@@ -188,23 +191,23 @@ func (f *filter) initIP16(intervals []*interval16) {
 		return f.ip16Less(intervals[i].max, intervals[j].max)
 	})
 
-	blockSize := len(intervals) / interval_size
-	if len(intervals)%interval_size != 0 {
+	blockSize := len(intervals) / intervalSize
+	if len(intervals)%intervalSize != 0 {
 		blockSize++
 	}
 	f.ip16 = make([]*block16, blockSize)
 
 	for k := 0; k < blockSize-1; k++ {
 		f.ip16[k] = &block16{
-			min:       intervals[k*interval_size].min,
-			max:       intervals[(k+1)*interval_size-1].max,
-			intervals: intervals[k*interval_size : (k+1)*interval_size],
+			min:       intervals[k*intervalSize].min,
+			max:       intervals[(k+1)*intervalSize-1].max,
+			intervals: intervals[k*intervalSize : (k+1)*intervalSize],
 		}
 	}
 	f.ip16[blockSize-1] = &block16{
-		min:       intervals[(blockSize-1)*interval_size].min,
+		min:       intervals[(blockSize-1)*intervalSize].min,
 		max:       intervals[len(intervals)-1].max,
-		intervals: intervals[(blockSize-1)*interval_size:],
+		intervals: intervals[(blockSize-1)*intervalSize:],
 	}
 }
 
