@@ -4,21 +4,35 @@ It supports both IPV4 and IPV6, and use the block[min, max] to describe CIDR, so
 
 
 
-#### How to use
-
->**imports ("github.com/koketama/ip")**
-
-
-
 #### Example
 
 ```go
-zoneUS4, err := MkZone("us", "http://ipverse.net/ipblocks/data/countries/us.zone")
+package main
 
-zoneUS16, err := MkZone("us", "http://ipverse.net/ipblocks/data/countries/us-ipv6.zone")
+import (
+	"github.com/koketama/ip"
+)
 
-filter, err := NewFilter(zoneUS4, zoneUS16)
+func main() {
+	zoneUS4, err := ip.MkZone("us", "http://ipverse.net/ipblocks/data/countries/us.zone")
+	if err != nil {
+		// TODO
+	}
 
-ok, zone, err := filter.Bingo("2001:430::")
+	zoneUS16, err := ip.MkZone("us", "http://ipverse.net/ipblocks/data/countries/us-ipv6.zone")
+	if err != nil {
+		// TODO
+	}
+
+	filter, err := ip.NewFilter(zoneUS4, zoneUS16)
+	if err != nil {
+		// TODO
+	}
+
+	ok, zone, err := filter.Bingo("2001:430::")
+	if err != nil {
+		// TODO
+	}
+}
 ```
 
